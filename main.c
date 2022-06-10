@@ -3,8 +3,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/ptrace.h>
+#include <elf.h>
 #include <sys/user.h>
-#include <seccomp.h>
+//#include <seccomp.h>
 #include <sys/uio.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -108,6 +109,22 @@ char    *make_printable_string(char *s)
                     *p++ = '\\';
                     *p = 'n';
                     break;
+		case '\t':
+		    *p++ = '\\';
+		    *p = 't';
+		    break;
+		case '\r':
+		    *p++ = '\\';
+		    *p = 'r';
+		    break;
+		case '\v':
+		    *p++ = '\\';
+		    *p = 'v';
+		    break;
+		case '\f':
+		    *p++ = '\\';
+		    *p = 'v';
+		    break;
             }
         } else {
             *p = *s;

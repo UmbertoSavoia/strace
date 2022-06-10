@@ -2,7 +2,7 @@ SRC = main.c
 OBJ = $(SRC:.c=.o)
 
 all: $(OBJ)
-	gcc $^ -lseccomp
+	gcc $^ #-lseccomp
 
 %.o: %.c
 	gcc -c $<
