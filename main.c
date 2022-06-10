@@ -79,22 +79,37 @@ unsigned long long int num_to_reg(struct user_regs_struct regs, int n)
 
 void    uint_solve(pid_t pid, struct user_regs_struct regs, int num_param)
 {
-    printf("%u, ", (unsigned int)num_to_reg(regs, num_param));
+    printf("%u", (unsigned int)num_to_reg(regs, num_param));
 }
 
 void    int_solve(pid_t pid, struct user_regs_struct regs, int num_param)
 {
-    printf("%d, ", (int)num_to_reg(regs, num_param));
+    printf("%d", (int)num_to_reg(regs, num_param));
 }
 
 void    long_solve(pid_t pid, struct user_regs_struct regs, int num_param)
 {
-    printf("%ld, ", (long)num_to_reg(regs, num_param));
+    printf("%ld", (long)num_to_reg(regs, num_param));
 }
 
 void    hex_solve(pid_t pid, struct user_regs_struct regs, int num_param)
 {
-    printf("0x%llx, ", num_to_reg(regs, num_param));
+    unsigned long long int n = num_to_reg(regs, num_param);
+
+    if (!n)
+        printf("%s", "0");
+    else
+        printf("0x%llx", n);
+}
+
+void    ptr_solve(pid_t pid, struct user_regs_struct regs, int num_param)
+{
+    unsigned long long int n = num_to_reg(regs, num_param);
+
+    if (!n)
+        printf("%s", "NULL");
+    else
+        printf("0x%llx", n);
 }
 
 char    *make_printable_string(char *s)
@@ -105,26 +120,26 @@ char    *make_printable_string(char *s)
     while (*s) {
         if (!isprint(*s)) {
             switch (*s) {
-                case '\n':
-                    *p++ = '\\';
-                    *p = 'n';
-                    break;
-		case '\t':
-		    *p++ = '\\';
-		    *p = 't';
-		    break;
-		case '\r':
-		    *p++ = '\\';
-		    *p = 'r';
-		    break;
-		case '\v':
-		    *p++ = '\\';
-		    *p = 'v';
-		    break;
-		case '\f':
-		    *p++ = '\\';
-		    *p = 'v';
-		    break;
+            case '\n':
+                *p++ = '\\';
+                *p = 'n';
+                break;
+            case '\t':
+                *p++ = '\\';
+                *p = 't';
+                break;
+            case '\r':
+                *p++ = '\\';
+                *p = 'r';
+                break;
+            case '\v':
+                *p++ = '\\';
+                *p = 'v';
+                break;
+            case '\f':
+                *p++ = '\\';
+                *p = 'v';
+                break;
             }
         } else {
             *p = *s;
@@ -175,7 +190,7 @@ void    strtab_solve(pid_t pid, struct user_regs_struct regs, int num_param)
         printf("\"%s\"", s);
         free(s);
     }
-    printf("], ");
+    printf("]");
 }
 
 void    vars_solve(pid_t pid, struct user_regs_struct regs, int num_param)
@@ -193,13 +208,13 @@ void    vars_solve(pid_t pid, struct user_regs_struct regs, int num_param)
         vars++;
         free(s);
     }
-    printf("%ld vars */, ", vars);
+    printf("%ld vars */", vars);
 }
 
 void    str_solve(pid_t pid, struct user_regs_struct regs, int num_param)
 {
     char *s = get_string(pid, num_to_reg(regs, num_param));
-    printf("\"%s\", ", s);
+    printf("\"%s\"", s);
     free(s);
 }
 
@@ -214,7 +229,7 @@ void    statbuf_solve(pid_t pid, struct user_regs_struct regs, int num_param)
         tmp = ptrace(PTRACE_PEEKDATA, pid, reg + i);
         b[i / sizeof(long)] = tmp;
     }
-    printf("{st_mode=%u, st_size=%ld, ...}  ", buf.st_mode, buf.st_size);
+    printf("{st_mode=%u, st_size=%ld, ...}", buf.st_mode, buf.st_size);
 }
 
 void    noparam_solve(pid_t pid, struct user_regs_struct regs, int num_param)
@@ -228,19 +243,24 @@ void    prot_flag_solve(pid_t pid, struct user_regs_struct regs, int num_param)
     char s[128] = {0};
     int j = 0;
     unsigned int flag[] = {
-            PROT_READ, PROT_WRITE, PROT_EXEC,
-            PROT_NONE, PROT_GROWSDOWN, PROT_GROWSUP
+            PROT_NONE,PROT_READ, PROT_WRITE,
+            PROT_EXEC, PROT_GROWSDOWN, PROT_GROWSUP
     };
     char *str_flag[] = {
-            "|PROT_READ", "|PROT_WRITE", "|PROT_EXEC",
-            "|PROT_NONE", "|PROT_GROWSDOWN", "|PROT_GROWSUP"
+            "|PROT_NONE", "|PROT_READ", "|PROT_WRITE",
+            "|PROT_EXEC", "|PROT_GROWSDOWN", "|PROT_GROWSUP"
     };
 
-    for (int i = 0; i < sizeof(flag) / sizeof(flag[0]); ++i) {
+    if (n == PROT_NONE) {
+        j += snprintf(s, 128, "%s", (str_flag[0]+1));
+        printf("%s", s);
+        return;
+    }
+    for (int i = 1; i < sizeof(flag) / sizeof(flag[0]); ++i) {
         if (n & flag[i])
             j += snprintf(s + j, 128, "%s", (s[0] == 0) ? (str_flag[i]+1) : str_flag[i]);
     }
-    printf("%s, ", s);
+    printf("%s", s);
 }
 
 void    map_flag_solve(pid_t pid, struct user_regs_struct regs, int num_param)
@@ -262,7 +282,7 @@ void    map_flag_solve(pid_t pid, struct user_regs_struct regs, int num_param)
         if (n & flag[i])
             j += snprintf(s + j, 128, "%s", (s[0] == 0) ? (str_flag[i]+1) : str_flag[i]);
     }
-    printf("%s, ", s);
+    printf("%s", s);
 }
 
 void    o_flag_solve(pid_t pid, struct user_regs_struct regs, int num_param)
@@ -284,7 +304,31 @@ void    o_flag_solve(pid_t pid, struct user_regs_struct regs, int num_param)
         if (n & flag[i])
             j += snprintf(s + j, 128, "%s", (s[0] == 0) ? (str_flag[i]+1) : str_flag[i]);
     }
-    printf("%s, ", s);
+    printf("%s", s);
+}
+
+void    r_flag_solve(pid_t pid, struct user_regs_struct regs, int num_param)
+{
+    unsigned long long int n = num_to_reg(regs, num_param);
+    char s[128] = {0};
+    int j = 0;
+    unsigned int flag[] = {
+            F_OK, R_OK, W_OK, X_OK,
+    };
+    char *str_flag[] = {
+            "|F_OK", "|R_OK", "|W_OK", "|X_OK",
+    };
+
+    if (n == F_OK) {
+        j += snprintf(s, 128, "%s", (str_flag[0]+1));
+        printf("%s", s);
+        return;
+    }
+    for (int i = 1; i < sizeof(flag) / sizeof(flag[0]); ++i) {
+        if (n & flag[i])
+            j += snprintf(s + j, 128, "%s", (s[0] == 0) ? (str_flag[i]+1) : str_flag[i]);
+    }
+    printf("%s", s);
 }
 
 void    at_flag_solve(pid_t pid, struct user_regs_struct regs, int num_param)
@@ -299,7 +343,7 @@ void    at_flag_solve(pid_t pid, struct user_regs_struct regs, int num_param)
 
     for (int i = 0; i < sizeof(flag) / sizeof(flag[0]); ++i) {
         if (n == flag[i]) {
-            printf("%s, ", str_flag[i]);
+            printf("%s", str_flag[i]);
             break ;
         }
     }
@@ -331,6 +375,8 @@ int     main(int ac, char **av, char **envp)
             o_flag_solve,
             at_flag_solve,
             vars_solve,
+            r_flag_solve,
+            ptr_solve,
         };
         int status = 0;
         struct user_regs_struct pre_regs = {0}, post_regs = {0};
@@ -346,15 +392,17 @@ int     main(int ac, char **av, char **envp)
                     char param = syscalls_64[pre_regs.orig_rax].params[i];
                     if (param == NOPAR)
                         break;
+                    if (i) printf(", ");
                     solve[param](pid, pre_regs, i+1);
                 }
                 ptrace(PTRACE_SYSCALL, pid, 0, 0);
-                printf("\b\b) = ");
+                printf(") = ");
                 intercept_syscall(pid, &status, &post_regs);
                 solve[syscalls_64[pre_regs.orig_rax].ret](pid, post_regs, 7);
                 ptrace(PTRACE_SYSCALL, pid, 0, 0);
                 printf("\n");
             } else if (WIFEXITED(status)) {
+                printf("+++ exited with %d +++\n", WEXITSTATUS(status));
                 break;
             }
         }
