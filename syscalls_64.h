@@ -15,6 +15,7 @@ enum types
     MAP,
     O_FLAG,
     AT_FLAG,
+    VARS,
 };
 
 typedef struct  s_syscalls
@@ -84,7 +85,7 @@ t_syscalls syscalls_64[] = {
         {"clone",					{ HEX, HEX, INT, INT, HEX, NOPAR, }, INT},
         {"fork",					{ NOPAR, NOPAR, NOPAR, NOPAR, NOPAR, NOPAR, }, LONG},
         {"vfork",					{ NOPAR, NOPAR, NOPAR, NOPAR, NOPAR, NOPAR, }, LONG},
-        {"execve",					{ STR, STRTAB, HEX, NOPAR, NOPAR, NOPAR, }, INT},
+        {"execve",					{ STR, STRTAB, VARS, NOPAR, NOPAR, NOPAR, }, INT},
         {"exit",					{ INT, NOPAR, NOPAR, NOPAR, NOPAR, NOPAR, }, NOPAR},
         {"wait4",					{ INT, INT, INT, HEX, NOPAR, NOPAR, }, LONG},
         {"kill",					{ LONG, INT, NOPAR, NOPAR, NOPAR, NOPAR, }, INT},

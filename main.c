@@ -161,6 +161,24 @@ void    strtab_solve(pid_t pid, struct user_regs_struct regs, int num_param)
     printf("], ");
 }
 
+void    vars_solve(pid_t pid, struct user_regs_struct regs, int num_param)
+{
+    char *s = 0;
+    unsigned long long int addr = num_to_reg(regs, num_param);
+    long addr_str = 0;
+    long vars = 0;
+
+    printf("0x%llx /* ", addr);
+    for (int i = 0; i >= 0; ++i) {
+        if (!(addr_str = ptrace(PTRACE_PEEKDATA, pid, addr + (i * sizeof(char *)))))
+            break;
+        s = get_string(pid, addr_str);
+        vars++;
+        free(s);
+    }
+    printf("%ld vars */, ", vars);
+}
+
 void    str_solve(pid_t pid, struct user_regs_struct regs, int num_param)
 {
     char *s = get_string(pid, num_to_reg(regs, num_param));
@@ -295,6 +313,7 @@ int     main(int ac, char **av, char **envp)
             map_flag_solve,
             o_flag_solve,
             at_flag_solve,
+            vars_solve,
         };
         int status = 0;
         struct user_regs_struct pre_regs = {0}, post_regs = {0};
