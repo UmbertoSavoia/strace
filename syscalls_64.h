@@ -18,6 +18,7 @@ enum types
     VARS,
     R_FLAG,
     PTR,
+    ARCH_FLAG,
 };
 
 typedef struct  s_syscalls
@@ -186,7 +187,7 @@ t_syscalls syscalls_64[] = {
         {"pivot_root",				{ STR, STR, NOPAR, NOPAR, NOPAR, NOPAR, }, INT},
         {"_sysctl",					{ HEX, HEX, HEX, HEX, HEX, HEX, }, INT},
         {"prctl",					{ INT, HEX, HEX, HEX, HEX, NOPAR, }, INT},
-        {"arch_prctl",				{ HEX, HEX, NOPAR, NOPAR, NOPAR, NOPAR, }, INT},
+        {"arch_prctl",				{ ARCH_FLAG, HEX, NOPAR, NOPAR, NOPAR, NOPAR, }, INT},
         {"adjtimex",				{ HEX, NOPAR, NOPAR, NOPAR, NOPAR, NOPAR, }, INT},
         {"setrlimit",				{ UINT, HEX, NOPAR, NOPAR, NOPAR, NOPAR, }, INT},
         {"chroot",					{ STR, NOPAR, NOPAR, NOPAR, NOPAR, NOPAR, }, INT},

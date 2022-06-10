@@ -12,8 +12,12 @@
 #include <sys/mman.h>
 #include <ctype.h>
 #include <fcntl.h>
+#include <sys/prctl.h>
+#include <asm/prctl.h>
 
 #include "syscalls_64.h"
+
+int printed = 0;
 
 int     get_regs(pid_t pid, struct user_regs_struct *ret)
 {
@@ -79,17 +83,17 @@ unsigned long long int num_to_reg(struct user_regs_struct regs, int n)
 
 void    uint_solve(pid_t pid, struct user_regs_struct regs, int num_param)
 {
-    printf("%u", (unsigned int)num_to_reg(regs, num_param));
+    printed += printf("%u", (unsigned int)num_to_reg(regs, num_param));
 }
 
 void    int_solve(pid_t pid, struct user_regs_struct regs, int num_param)
 {
-    printf("%d", (int)num_to_reg(regs, num_param));
+    printed += printf("%d", (int)num_to_reg(regs, num_param));
 }
 
 void    long_solve(pid_t pid, struct user_regs_struct regs, int num_param)
 {
-    printf("%ld", (long)num_to_reg(regs, num_param));
+    printed += printf("%ld", (long)num_to_reg(regs, num_param));
 }
 
 void    hex_solve(pid_t pid, struct user_regs_struct regs, int num_param)
@@ -97,9 +101,9 @@ void    hex_solve(pid_t pid, struct user_regs_struct regs, int num_param)
     unsigned long long int n = num_to_reg(regs, num_param);
 
     if (!n)
-        printf("%s", "0");
+        printed += printf("%s", "0");
     else
-        printf("0x%llx", n);
+        printed += printf("0x%llx", n);
 }
 
 void    ptr_solve(pid_t pid, struct user_regs_struct regs, int num_param)
@@ -107,9 +111,9 @@ void    ptr_solve(pid_t pid, struct user_regs_struct regs, int num_param)
     unsigned long long int n = num_to_reg(regs, num_param);
 
     if (!n)
-        printf("%s", "NULL");
+        printed += printf("%s", "NULL");
     else
-        printf("0x%llx", n);
+        printed += printf("0x%llx", n);
 }
 
 char    *make_printable_string(char *s)
@@ -180,17 +184,17 @@ void    strtab_solve(pid_t pid, struct user_regs_struct regs, int num_param)
     unsigned long long int addr = num_to_reg(regs, num_param);
     long addr_str = 0;
 
-    printf("[");
+    printed += printf("[");
     for (int i = 0; i >= 0; ++i) {
         if (!(addr_str = ptrace(PTRACE_PEEKDATA, pid, addr + (i * sizeof(char *)))))
             break;
         s = get_string(pid, addr_str);
         if (i > 0)
-            printf(", ");
-        printf("\"%s\"", s);
+            printed += printf(", ");
+        printed += printf("\"%s\"", s);
         free(s);
     }
-    printf("]");
+    printed += printf("]");
 }
 
 void    vars_solve(pid_t pid, struct user_regs_struct regs, int num_param)
@@ -200,7 +204,7 @@ void    vars_solve(pid_t pid, struct user_regs_struct regs, int num_param)
     long addr_str = 0;
     long vars = 0;
 
-    printf("0x%llx /* ", addr);
+    printed += printf("0x%llx /* ", addr);
     for (int i = 0; i >= 0; ++i) {
         if (!(addr_str = ptrace(PTRACE_PEEKDATA, pid, addr + (i * sizeof(char *)))))
             break;
@@ -208,13 +212,13 @@ void    vars_solve(pid_t pid, struct user_regs_struct regs, int num_param)
         vars++;
         free(s);
     }
-    printf("%ld vars */", vars);
+    printed += printf("%ld vars */", vars);
 }
 
 void    str_solve(pid_t pid, struct user_regs_struct regs, int num_param)
 {
     char *s = get_string(pid, num_to_reg(regs, num_param));
-    printf("\"%s\"", s);
+    printed += printf("\"%s\"", s);
     free(s);
 }
 
@@ -229,12 +233,12 @@ void    statbuf_solve(pid_t pid, struct user_regs_struct regs, int num_param)
         tmp = ptrace(PTRACE_PEEKDATA, pid, reg + i);
         b[i / sizeof(long)] = tmp;
     }
-    printf("{st_mode=%u, st_size=%ld, ...}", buf.st_mode, buf.st_size);
+    printed += printf("{st_mode=%u, st_size=%ld, ...}", buf.st_mode, buf.st_size);
 }
 
 void    noparam_solve(pid_t pid, struct user_regs_struct regs, int num_param)
 {
-    printf("?");
+    printed += printf("?");
 }
 
 void    prot_flag_solve(pid_t pid, struct user_regs_struct regs, int num_param)
@@ -253,14 +257,14 @@ void    prot_flag_solve(pid_t pid, struct user_regs_struct regs, int num_param)
 
     if (n == PROT_NONE) {
         j += snprintf(s, 128, "%s", (str_flag[0]+1));
-        printf("%s", s);
+        printed += printf("%s", s);
         return;
     }
     for (int i = 1; i < sizeof(flag) / sizeof(flag[0]); ++i) {
         if (n & flag[i])
             j += snprintf(s + j, 128, "%s", (s[0] == 0) ? (str_flag[i]+1) : str_flag[i]);
     }
-    printf("%s", s);
+    printed += printf("%s", s);
 }
 
 void    map_flag_solve(pid_t pid, struct user_regs_struct regs, int num_param)
@@ -282,7 +286,7 @@ void    map_flag_solve(pid_t pid, struct user_regs_struct regs, int num_param)
         if (n & flag[i])
             j += snprintf(s + j, 128, "%s", (s[0] == 0) ? (str_flag[i]+1) : str_flag[i]);
     }
-    printf("%s", s);
+    printed += printf("%s", s);
 }
 
 void    o_flag_solve(pid_t pid, struct user_regs_struct regs, int num_param)
@@ -304,7 +308,7 @@ void    o_flag_solve(pid_t pid, struct user_regs_struct regs, int num_param)
         if (n & flag[i])
             j += snprintf(s + j, 128, "%s", (s[0] == 0) ? (str_flag[i]+1) : str_flag[i]);
     }
-    printf("%s", s);
+    printed += printf("%s", s);
 }
 
 void    r_flag_solve(pid_t pid, struct user_regs_struct regs, int num_param)
@@ -321,14 +325,14 @@ void    r_flag_solve(pid_t pid, struct user_regs_struct regs, int num_param)
 
     if (n == F_OK) {
         j += snprintf(s, 128, "%s", (str_flag[0]+1));
-        printf("%s", s);
+        printed += printf("%s", s);
         return;
     }
     for (int i = 1; i < sizeof(flag) / sizeof(flag[0]); ++i) {
         if (n & flag[i])
             j += snprintf(s + j, 128, "%s", (s[0] == 0) ? (str_flag[i]+1) : str_flag[i]);
     }
-    printf("%s", s);
+    printed += printf("%s", s);
 }
 
 void    at_flag_solve(pid_t pid, struct user_regs_struct regs, int num_param)
@@ -343,7 +347,27 @@ void    at_flag_solve(pid_t pid, struct user_regs_struct regs, int num_param)
 
     for (int i = 0; i < sizeof(flag) / sizeof(flag[0]); ++i) {
         if (n == flag[i]) {
-            printf("%s", str_flag[i]);
+            printed += printf("%s", str_flag[i]);
+            break ;
+        }
+    }
+}
+
+void    arch_flag_solve(pid_t pid, struct user_regs_struct regs, int num_param)
+{
+    unsigned long long int n = num_to_reg(regs, num_param);
+    unsigned int flag[] = {
+        ARCH_SET_GS, ARCH_SET_FS, ARCH_GET_FS, ARCH_GET_GS,
+        ARCH_GET_CPUID, ARCH_SET_CPUID
+    };
+    char *str_flag[] = {
+            "ARCH_SET_GS", "ARCH_SET_FS", "ARCH_GET_FS", "ARCH_GET_GS",
+            "ARCH_GET_CPUID", "ARCH_SET_CPUID"
+    };
+
+    for (int i = 0; i < sizeof(flag) / sizeof(flag[0]); ++i) {
+        if (n == flag[i]) {
+            printed += printf("%s", str_flag[i]);
             break ;
         }
     }
@@ -377,6 +401,7 @@ int     main(int ac, char **av, char **envp)
             vars_solve,
             r_flag_solve,
             ptr_solve,
+            arch_flag_solve,
         };
         int status = 0;
         struct user_regs_struct pre_regs = {0}, post_regs = {0};
@@ -387,20 +412,21 @@ int     main(int ac, char **av, char **envp)
 
         while (1) {
             if (!intercept_syscall(pid, &status, &pre_regs)) {
-                printf("%s(", syscalls_64[pre_regs.orig_rax].name);
+                printed += printf("%s(", syscalls_64[pre_regs.orig_rax].name);
                 for (int i = 0; i < 6; ++i) {
                     char param = syscalls_64[pre_regs.orig_rax].params[i];
                     if (param == NOPAR)
                         break;
-                    if (i) printf(", ");
+                    if (i) printed += printf(", ");
                     solve[param](pid, pre_regs, i+1);
                 }
                 ptrace(PTRACE_SYSCALL, pid, 0, 0);
-                printf(") = ");
+                printf(")%*s= ", (printed <= 40) ? (40 - printed) : 0, " ");
                 intercept_syscall(pid, &status, &post_regs);
                 solve[syscalls_64[pre_regs.orig_rax].ret](pid, post_regs, 7);
                 ptrace(PTRACE_SYSCALL, pid, 0, 0);
                 printf("\n");
+                printed = 0;
             } else if (WIFEXITED(status)) {
                 printf("+++ exited with %d +++\n", WEXITSTATUS(status));
                 break;
