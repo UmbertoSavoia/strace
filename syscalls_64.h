@@ -19,7 +19,6 @@ enum types
     R_FLAG,
     PTR,
     ARCH_FLAG,
-    READ_S
 };
 
 typedef struct  s_syscalls
@@ -30,7 +29,7 @@ typedef struct  s_syscalls
 }               t_syscalls;
 
 t_syscalls syscalls_64[] = {
-        {"read",					{ UINT, READ_S, LONG, NOPAR, NOPAR, NOPAR, }, LONG},
+        {"read",					{ UINT, STR, LONG, NOPAR, NOPAR, NOPAR, }, LONG},
         {"write",					{ UINT, STR, LONG, NOPAR, NOPAR, NOPAR, }, LONG},
         {"open",					{ STR, INT, O_FLAG, NOPAR, NOPAR, NOPAR, }, INT},
         {"close",					{ UINT, NOPAR, NOPAR, NOPAR, NOPAR, NOPAR, }, INT},
