@@ -178,6 +178,26 @@ char    *get_string(pid_t pid, unsigned long long int reg)
     return check_if_non_print(s) ? make_printable_string(s) : strdup(s);
 }
 
+void    read_solve(pid_t pid, struct user_regs_struct regs, int num_param)
+{
+    unsigned long long int addr = num_to_reg(regs, num_param);
+    unsigned long long int size = num_to_reg(regs, num_param+1);
+    char *s = malloc(size+1);
+    long tmp = 0;
+
+    if (!s) return;
+    for (unsigned long long int i = 0; i < size; i += sizeof(long)) {
+        tmp = ptrace(PTRACE_PEEKDATA, pid, addr + i);
+        //printf("%lx - ", (unsigned long)tmp); //debug
+        memcpy(s+i, &tmp, sizeof(long));
+    }
+    puts(""); //debug
+    for (int i = 0; i < 32; ++i) {
+        write(1, &s[i], 1);
+    }
+    free(s);
+}
+
 void    strtab_solve(pid_t pid, struct user_regs_struct regs, int num_param)
 {
     char *s = 0;
@@ -402,6 +422,7 @@ int     main(int ac, char **av, char **envp)
             r_flag_solve,
             ptr_solve,
             arch_flag_solve,
+            read_solve,
         };
         int status = 0;
         struct user_regs_struct pre_regs = {0}, post_regs = {0};
