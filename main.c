@@ -232,17 +232,17 @@ void    str_solve(pid_t pid, struct user_regs_struct regs, int num_param)
         printed += fprintf(stderr, "\"%s\"", s);
         free(s);
     } else {
-        unsigned long long int size = num_to_reg(regs, num_param+1);
+        unsigned long long int _size = num_to_reg(regs, num_param+1);
         long tmp = 0;
 
-        size = (size > 32) ? 32 : size;
+        int size = (_size > 32) ? 32 : _size;
         s = malloc(size*3);
         for (int i = 0; i < size; i += sizeof(long)) {
             tmp = ptrace(PTRACE_PEEKDATA, pid, addr + i);
             memcpy(s + i, &tmp, sizeof(long));
         }
         _s = make_printable_string(s, (int)size);
-        printed += fprintf(stderr, "\"%s\" ...", _s);
+        printed += fprintf(stderr, "\"%s\"%s", _s, (_size > 32) ? " ..." : "");
         free(s);
         free(_s);
     }
