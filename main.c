@@ -14,6 +14,7 @@
 #include <fcntl.h>
 #include <sys/prctl.h>
 #include <asm/prctl.h>
+#include <errno.h>
 
 #include "syscalls_64.h"
 
@@ -38,6 +39,33 @@ int     get_regs(pid_t pid, struct user_regs_struct *ret)
     return 0;
 }
 
+void    handle_sig(siginfo_t *sig)
+{
+    if (sig->si_signo == SIGTRAP) {
+        return;
+    } else if (sig->si_signo == SIGCHLD) {
+        fprintf(stderr,
+                "--- SIGCHLD {si_signo=SIGCHLD, si_code=%s, si_pid=%d, si_uid=%d, si_status=%d, si_utime=%ld, si_stime=%ld} ---\n",
+                sigtab[sig->si_signo].code[sig->si_code], sig->si_pid, sig->si_uid, sig->si_status, sig->si_utime, sig->si_stime);
+    } else if (sig->si_signo == SIGSEGV) {
+        fprintf(stderr,
+                "--- SIGSEGV {si_signo=SIGSEGV, si_code=%s, si_addr=0x%p} ---\n",
+                sigtab[sig->si_signo].code[sig->si_code], sig->si_addr);
+        fprintf(stderr, "+++ killed by SIGSEGV +++\n");
+        raise(SIGSEGV);
+    }else if (sig->si_signo == SIGCONT || sig->si_signo == SIGTSTP || sig->si_signo == SIGINT) {
+        fprintf(stderr, "--- %s {si_signo=%s, si_code=%s} ---\n",
+                sigtab[sig->si_signo].name, sigtab[sig->si_signo].name,
+                sigtab[sig->si_signo].code[sig->si_code < 0 ? -sig->si_code : sig->si_code]);
+    } else {
+        fprintf(stderr,
+                "--- %s {si_signo=%s, si_code=%s, si_pid=%d, si_uid=%d} ---\n",
+                sigtab[sig->si_signo].name, sigtab[sig->si_signo].name,
+                sigtab[sig->si_signo].code[sig->si_code < 0 ? -sig->si_code : sig->si_code],
+                sig->si_pid, sig->si_uid);
+    }
+}
+
 int     intercept_syscall(pid_t pid, int *_status, struct user_regs_struct *ret)
 {
     siginfo_t siginfo;
@@ -50,10 +78,11 @@ int     intercept_syscall(pid_t pid, int *_status, struct user_regs_struct *ret)
         return -1;
     if (WIFSTOPPED(status)) {
         ptrace(PTRACE_GETSIGINFO, pid, 0, &siginfo);
-        if (siginfo.si_code == SIGTRAP || siginfo.si_code == (SIGTRAP | 0x80)) {
+        if (siginfo.si_code == (SIGTRAP | 0x80)) {
             get_regs(pid, ret);
-            //ptrace(PTRACE_SYSCALL, pid, 0, 0);
             return 0;
+        } else {
+            handle_sig(&siginfo);
         }
     }
     ptrace(PTRACE_SYSCALL, pid, 0, 0);
@@ -116,53 +145,39 @@ void    ptr_solve(pid_t pid, struct user_regs_struct regs, int num_param)
         printed += fprintf(stderr, "0x%llx", n);
 }
 
-char    *make_printable_string(char *s, int size)
+char    *make_printable_string(char *s, int nsyscall, int size)
 {
-    char *p = malloc(size*3);
+    char *p = malloc(size*3+1);
     char *_p = p;
 
-    for (int i = 0; i < size; ++i, ++s, ++p) {
-        if (!isprint(*s)) {
-            switch (*s) {
-            case '\n':
+    for (int i = 0; i < size; ++i, ++p) {
+        if (!isprint(s[i])) {
+            if (s[i] == '\n') {
                 *p++ = '\\';
                 *p = 'n';
-                break;
-            case '\t':
-                *p++ = '\\';
-                *p = 't';
-                break;
-            case '\r':
-                *p++ = '\\';
-                *p = 'r';
-                break;
-            case '\v':
-                *p++ = '\\';
-                *p = 'v';
-                break;
-            case '\f':
-                *p++ = '\\';
-                *p = 'v';
-                break;
-            default:
-                p += snprintf( p, 12, "\\%o", *s);
+                if (nsyscall == 0) {
+                    p++;
+                    *p = 0;
+                    break;
+                }
+            } else if (s[i] == '\t') {
+                *p++ = '\\'; *p = 't';
+            } else if (s[i] == '\r') {
+                *p++ = '\\'; *p = 'r';
+            } else if (s[i] == '\v') {
+                *p++ = '\\'; *p = 'v';
+            } else if (s[i] == '\f') {
+                *p++ = '\\'; *p = 'f';
+            } else {
+                p += snprintf( p, 12, "\\%o", s[i]);
                 p--;
             }
         } else {
-            *p = *s;
+            *p = s[i];
         }
     }
+    *p = 0;
     return _p;
-}
-
-char    check_if_non_print(char *s)
-{
-    while (s && *s) {
-        if (!isprint(*s))
-            return 1;
-        s++;
-    }
-    return 0;
 }
 
 char    *get_string(pid_t pid, unsigned long long int reg)
@@ -176,11 +191,10 @@ char    *get_string(pid_t pid, unsigned long long int reg)
         tmp = ptrace(PTRACE_PEEKDATA, pid, reg + i);
         memcpy(s + i, &tmp, sizeof(long));
         if (memchr(&tmp, 0, sizeof(long))) {
-            //i = i + (p - (char *)&tmp);
             break;
         }
     }
-    return /*check_if_non_print(s) ? make_printable_string(s, i) :*/ strdup(s);
+    return strdup(s);
 }
 
 void    strtab_solve(pid_t pid, struct user_regs_struct regs, int num_param)
@@ -236,12 +250,12 @@ void    str_solve(pid_t pid, struct user_regs_struct regs, int num_param)
         long tmp = 0;
 
         int size = (_size > 32) ? 32 : _size;
-        s = malloc(size*3);
+        s = malloc((size*3) * sizeof(char));
         for (int i = 0; i < size; i += sizeof(long)) {
             tmp = ptrace(PTRACE_PEEKDATA, pid, addr + i);
             memcpy(s + i, &tmp, sizeof(long));
         }
-        _s = make_printable_string(s, (int)size);
+        _s = make_printable_string(s, nsyscall, (int)size);
         printed += fprintf(stderr, "\"%s\"%s", _s, (_size > 32) ? " ..." : "");
         free(s);
         free(_s);
@@ -328,11 +342,15 @@ void    o_flag_solve(pid_t pid, struct user_regs_struct regs, int num_param)
             "|O_RDONLY", "|O_WRONLY", "|O_RDWR",
             "|O_ACCMODE", "|O_CLOEXEC"
     };
-    if ((n & 1) == O_RDONLY)
-        j += snprintf( s, 128, "%s", (str_flag[0]+1));
-    for (int i = 0; i < sizeof(flag) / sizeof(flag[0]); ++i) {
-        if (n & flag[i])
-            j += snprintf( s + j, 128, "%s", (s[0] == 0) ? (str_flag[i]+1) : str_flag[i]);
+    if (n == O_RDWR) {
+        snprintf( s, 128, "%s", (str_flag[2]+1));
+    } else {
+        if ((n & 1) == O_RDONLY)
+            j += snprintf( s, 128, "%s", (str_flag[0]+1));
+        for (int i = 0; i < sizeof(flag) / sizeof(flag[0]); ++i) {
+            if (n & flag[i])
+                j += snprintf( s + j, 128, "%s", (s[0] == 0) ? (str_flag[i]+1) : str_flag[i]);
+        }
     }
     printed += fprintf(stderr, "%s", s);
 }
@@ -399,6 +417,16 @@ void    arch_flag_solve(pid_t pid, struct user_regs_struct regs, int num_param)
     }
 }
 
+void    errno_solve(struct user_regs_struct post_regs)
+{
+    int e = -1 - post_regs.rax + 1;
+
+    fprintf(stderr, "%s %s (%s)",
+            (e > 500) ? "?" : "-1",
+            (e > 530) ? "NULL" : errno_tab[e].name,
+            (!strlen(errno_tab[e].desc)) ? strerror(e) : errno_tab[e].desc);
+}
+
 int     main(int ac, char **av, char **envp)
 {
     if (ac < 2) return 1;
@@ -407,7 +435,6 @@ int     main(int ac, char **av, char **envp)
 
     if (pid == 0) {
         execve(av[1], av+1, envp);
-        puts("Error execve");
         exit(1);
     } else if (pid > 0) {
         typedef void (*f_solve)(pid_t pid, struct user_regs_struct regs, int num_param);
@@ -448,17 +475,21 @@ int     main(int ac, char **av, char **envp)
                     char param = syscalls_64[pre_regs.orig_rax].params[i];
                     if (param == NOPAR)
                         break;
-                    if (i) printed += fprintf(stderr, ", ");
                     solve[param](pid, pre_regs, i+1);
+                    if (i != 5 && i < 6 && syscalls_64[pre_regs.orig_rax].params[i+1] != NOPAR)
+                        printed += fprintf(stderr, ", ");
                 }
                 if (pre_regs.orig_rax != 0 && pre_regs.orig_rax != 5) {
                     ptrace(PTRACE_SYSCALL, pid, 0, 0);
                     intercept_syscall(pid, &status, &post_regs);
                 }
                 fprintf(stderr, ")%*s= ", (printed <= 40) ? (40 - printed) : 0, " ");
-                solve[syscalls_64[pre_regs.orig_rax].ret](pid, post_regs, 7);
-                ptrace(PTRACE_SYSCALL, pid, 0, 0);
+                if ((long)post_regs.rax < 0)
+                    errno_solve(post_regs);
+                else
+                    solve[syscalls_64[pre_regs.orig_rax].ret](pid, post_regs, 7);
                 fprintf(stderr, "\n");
+                ptrace(PTRACE_SYSCALL, pid, 0, 0);
                 printed = 0;
             } else if (WIFEXITED(status)) {
                 fprintf(stderr, "+++ exited with %d +++\n", WEXITSTATUS(status));
