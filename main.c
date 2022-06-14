@@ -427,13 +427,37 @@ void    errno_solve(struct user_regs_struct post_regs)
             (!strlen(errno_tab[e].desc)) ? strerror(e) : errno_tab[e].desc);
 }
 
+char     *resolve_path(char *arg)
+{
+    struct stat statbuf = {0};
+    char buf[4096] = {0};
+    char *s = getenv("PATH");
+
+    if (!lstat(arg, &statbuf))
+        return strdup(arg);
+    if (!s) return 0;
+    char *p = strtok(s, ":");
+    while (p) {
+        snprintf(buf, 4096, "%s/%s", p, arg);
+        if (!lstat(buf, &statbuf))
+            return strdup(buf);
+        p = strtok(0, ":");
+    }
+    return 0;
+}
+
 int     main(int ac, char **av, char **envp)
 {
-    if (ac < 2) return 1;
+    if (ac < 2)
+        return 1;
+    char *solved_path = resolve_path(av[1]);
 
+    if (!solved_path)
+        return 1;
     pid_t pid = fork();
 
     if (pid == 0) {
+        av[1] = solved_path;
         execve(av[1], av+1, envp);
         exit(1);
     } else if (pid > 0) {
