@@ -461,6 +461,7 @@ int     main(int ac, char **av, char **envp)
         execve(av[1], av+1, envp);
         exit(1);
     } else if (pid > 0) {
+        free(solved_path);
         typedef void (*f_solve)(pid_t pid, struct user_regs_struct regs, int num_param);
         f_solve solve[] = {
             noparam_solve,
