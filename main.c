@@ -15,6 +15,7 @@
 #include <sys/prctl.h>
 #include <asm/prctl.h>
 #include <errno.h>
+#include <stdarg.h>
 
 #include "syscalls_64.h"
 
@@ -39,10 +40,10 @@ int     get_regs(pid_t pid, struct user_regs_struct *ret)
     return 0;
 }
 
-void    handle_sig(siginfo_t *sig)
+int    handle_sig(pid_t pid, siginfo_t *sig)
 {
     if (sig->si_signo == SIGTRAP) {
-        return;
+        return 0;
     } else if (sig->si_signo == SIGCHLD) {
         fprintf(stderr,
                 "--- SIGCHLD {si_signo=SIGCHLD, si_code=%s, si_pid=%d, si_uid=%d, si_status=%d, si_utime=%ld, si_stime=%ld} ---\n",
@@ -65,17 +66,41 @@ void    handle_sig(siginfo_t *sig)
                 sigtab[sig->si_signo].name, sigtab[sig->si_signo].name,
                 sigtab[sig->si_signo].code[sig->si_code < 0 ? -sig->si_code : sig->si_code],
                 sig->si_pid, sig->si_uid);
+        if (sig->si_signo == SIGWINCH) {
+            ptrace(PTRACE_SYSCALL, pid, 0, sig->si_signo);
+            return 1;
+        }
     }
+    return 0;
+}
+
+void    sigaddset_multi(sigset_t *sigmask, int tot_arg, ...)
+{
+    va_list ap;
+
+    va_start(ap, tot_arg);
+    for (int i = 0; i < tot_arg; ++i)
+        sigaddset(sigmask, va_arg(ap, int));
+    va_end(ap);
 }
 
 int     intercept_syscall(pid_t pid, int *_status, struct user_regs_struct *ret)
 {
     siginfo_t siginfo;
     int status = 0;
+    sigset_t sigmask;
+
+    sigemptyset(&sigmask);
+    sigprocmask(SIG_SETMASK, &sigmask, NULL);
 
     waitpid(pid, &status, 0);
-    *_status = status;
 
+    sigemptyset(&sigmask);
+    sigaddset_multi(&sigmask, 5,
+                    SIGHUP, SIGINT, SIGQUIT, SIGPIPE, SIGTERM);
+    sigprocmask(SIG_BLOCK, &sigmask, NULL);
+
+    *_status = status;
     if (WIFEXITED(status))
         return -1;
     if (WIFSTOPPED(status)) {
@@ -84,7 +109,8 @@ int     intercept_syscall(pid_t pid, int *_status, struct user_regs_struct *ret)
             get_regs(pid, ret);
             return 0;
         } else {
-            handle_sig(&siginfo);
+            if (handle_sig(pid, &siginfo))
+                return -2;
         }
     }
     ptrace(PTRACE_SYSCALL, pid, 0, 0);

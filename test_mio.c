@@ -1,7 +1,6 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-
 int main(void)
 {
     int fd = open("test_mio.c", O_RDONLY);
@@ -15,3 +14,4 @@ int main(void)
     read(fd, c, 32);
     close(fd);
 }
+
