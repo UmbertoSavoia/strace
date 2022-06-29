@@ -1,1 +1,1 @@
-# strace_test
+# strace
