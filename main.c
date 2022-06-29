@@ -47,12 +47,14 @@ void    handle_sig(siginfo_t *sig)
         fprintf(stderr,
                 "--- SIGCHLD {si_signo=SIGCHLD, si_code=%s, si_pid=%d, si_uid=%d, si_status=%d, si_utime=%ld, si_stime=%ld} ---\n",
                 sigtab[sig->si_signo].code[sig->si_code], sig->si_pid, sig->si_uid, sig->si_status, sig->si_utime, sig->si_stime);
-    } else if (sig->si_signo == SIGSEGV) {
+    } else if (sig->si_signo == SIGSEGV || sig->si_signo == SIGBUS) {
         fprintf(stderr,
-                "--- SIGSEGV {si_signo=SIGSEGV, si_code=%s, si_addr=0x%p} ---\n",
+                "--- %s {si_signo=%s, si_code=%s, si_addr=0x%p} ---\n",
+                sigtab[sig->si_signo].name,
+                sigtab[sig->si_signo].name,
                 sigtab[sig->si_signo].code[sig->si_code], sig->si_addr);
-        fprintf(stderr, "+++ killed by SIGSEGV +++\n");
-        raise(SIGSEGV);
+        fprintf(stderr, "+++ killed by %s +++\n", sigtab[sig->si_signo].name);
+        raise((sig->si_signo == SIGSEGV) ? SIGSEGV : SIGBUS);
     }else if (sig->si_signo == SIGCONT || sig->si_signo == SIGTSTP || sig->si_signo == SIGINT) {
         fprintf(stderr, "--- %s {si_signo=%s, si_code=%s} ---\n",
                 sigtab[sig->si_signo].name, sigtab[sig->si_signo].name,
@@ -147,6 +149,7 @@ void    ptr_solve(pid_t pid, struct user_regs_struct regs, int num_param)
 
 char    *make_printable_string(char *s, int nsyscall, int size)
 {
+/*
     char *p = malloc(size*3+1);
     char *_p = p;
 
@@ -154,7 +157,8 @@ char    *make_printable_string(char *s, int nsyscall, int size)
         if (!isprint(s[i])) {
             if (s[i] == '\n') {
                 *p++ = '\\';
-                *p = 'n';
+                *p++ = 'n';
+                *p = 0;
                 if (nsyscall == 0) {
                     p++;
                     *p = 0;
@@ -178,6 +182,33 @@ char    *make_printable_string(char *s, int nsyscall, int size)
     }
     *p = 0;
     return _p;
+    */
+    size_t s_size = size*3+1;
+    char *escaped = malloc(s_size);
+    char *p = 0;
+    char c[] = "\n\t\f\v\r";
+    char sc[32][4] = {
+            ['\n'] = "\\n",
+            ['\t'] = "\\t",
+            ['\f'] = "\\f",
+            ['\v'] = "\\v",
+            ['\r'] = "\\r",
+    };
+    int j = 0;
+    int i = 0;
+    for (i = 0; i < size; ++i) {
+        if ((p = strchr(c, s[i])) && s[i] != 0) {
+            snprintf(escaped + i + j, s_size-(i+j), "%s", sc[p[0]]);
+            ++j;
+        } else if (!isprint(s[i])) {
+            j += snprintf( escaped+i+j, s_size-(i+j), "\\%hho", s[i]);
+            j-=1;
+        } else {
+            snprintf(escaped+i+j, s_size-(i+j), "%c", s[i]);
+        }
+    }
+    escaped[i+j] = 0;
+    return escaped;
 }
 
 char    *get_string(pid_t pid, unsigned long long int reg)
@@ -246,10 +277,18 @@ void    str_solve(pid_t pid, struct user_regs_struct regs, int num_param)
         printed += fprintf(stderr, "\"%s\"", s);
         free(s);
     } else {
-        unsigned long long int _size = num_to_reg(regs, num_param+1);
         long tmp = 0;
+        unsigned long long int _size = 0;
 
-        int size = (_size > 32) ? 32 : _size;
+        if (nsyscall == 0) {
+            struct user_regs_struct reg_post = {0};
+            get_regs(pid, &reg_post);
+            _size = reg_post.rax;
+        } else {
+            _size = num_to_reg(regs, num_param+1);
+        }
+
+        int size = (_size > 32) ? 32 : (int)_size;
         s = malloc((size*3) * sizeof(char));
         for (int i = 0; i < size; i += sizeof(long)) {
             tmp = ptrace(PTRACE_PEEKDATA, pid, addr + i);
