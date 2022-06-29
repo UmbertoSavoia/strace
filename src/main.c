@@ -139,7 +139,7 @@ int     main(int ac, char **av, char **envp)
                         ptrace(PTRACE_SYSCALL, pid, 0, 0);
                         intercept_syscall(pid, &status, &post_regs);
                     }
-                    char param = syscalls_64[pre_regs.orig_rax].params[i];
+                    unsigned char param = syscalls_64[pre_regs.orig_rax].params[i];
                     if (param == NOPAR)
                         break;
                     solve[param](pid, pre_regs, i+1);
@@ -154,7 +154,7 @@ int     main(int ac, char **av, char **envp)
                 if ((long)post_regs.rax < 0)
                     errno_solve(post_regs);
                 else
-                    solve[syscalls_64[pre_regs.orig_rax].ret](pid, post_regs, 7);
+                    solve[(unsigned int)syscalls_64[pre_regs.orig_rax].ret](pid, post_regs, 7);
                 fprintf(stderr, "\n");
                 ptrace(PTRACE_SYSCALL, pid, 0, 0);
                 printed = 0;

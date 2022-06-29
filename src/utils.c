@@ -40,7 +40,7 @@ unsigned long long int num_to_reg(struct user_regs_struct regs, int n)
     return 0;
 }
 
-char    *make_printable_string(char *s, int nsyscall, int size)
+char    *make_printable_string(char *s, int size)
 {
     size_t s_size = size*3+1;
     char *escaped = malloc(s_size);
@@ -57,7 +57,7 @@ char    *make_printable_string(char *s, int nsyscall, int size)
     int i = 0;
     for (i = 0; i < size; ++i) {
         if ((p = strchr(c, s[i])) && s[i] != 0) {
-            snprintf(escaped + i + j, s_size-(i+j), "%s", sc[p[0]]);
+            snprintf(escaped + i + j, s_size-(i+j), "%s", sc[(unsigned char)p[0]]);
             ++j;
         } else if (!isprint(s[i])) {
             j += snprintf( escaped+i+j, s_size-(i+j), "\\%hho", s[i]);
@@ -74,10 +74,8 @@ char    *get_string(pid_t pid, unsigned long long int reg)
 {
     char s[4096] = {0};
     long tmp = 0;
-    int i = 0;
-    char *p = 0;
 
-    for (i = 0; i < 1024; i += sizeof(long)) {
+    for (int i = 0; i < 1024; i += sizeof(long)) {
         tmp = ptrace(PTRACE_PEEKDATA, pid, reg + i);
         memcpy(s + i, &tmp, sizeof(long));
         if (memchr(&tmp, 0, sizeof(long))) {

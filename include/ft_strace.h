@@ -91,7 +91,7 @@ void    errno_solve(struct user_regs_struct post_regs);
  */
 int                     get_regs(pid_t pid, struct user_regs_struct *ret);
 unsigned long long int  num_to_reg(struct user_regs_struct regs, int n);
-char                    *make_printable_string(char *s, int nsyscall, int size);
+char                    *make_printable_string(char *s, int size);
 char                    *get_string(pid_t pid, unsigned long long int reg);
 void                    sigaddset_multi(sigset_t *sigmask, int tot_arg, ...);
 

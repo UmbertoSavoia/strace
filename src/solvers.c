@@ -2,21 +2,25 @@
 
 void    uint_solve(pid_t pid, struct user_regs_struct regs, int num_param)
 {
+    (void)pid;
     printed += fprintf(stderr, "%u", (unsigned int)num_to_reg(regs, num_param));
 }
 
 void    int_solve(pid_t pid, struct user_regs_struct regs, int num_param)
 {
+    (void)pid;
     printed += fprintf(stderr, "%d", (int)num_to_reg(regs, num_param));
 }
 
 void    long_solve(pid_t pid, struct user_regs_struct regs, int num_param)
 {
+    (void)pid;
     printed += fprintf(stderr, "%ld", (long)num_to_reg(regs, num_param));
 }
 
 void    hex_solve(pid_t pid, struct user_regs_struct regs, int num_param)
 {
+    (void)pid;
     unsigned long long int n = num_to_reg(regs, num_param);
 
     if (!n)
@@ -27,6 +31,7 @@ void    hex_solve(pid_t pid, struct user_regs_struct regs, int num_param)
 
 void    ptr_solve(pid_t pid, struct user_regs_struct regs, int num_param)
 {
+    (void)pid;
     unsigned long long int n = num_to_reg(regs, num_param);
 
     if (!n)
@@ -101,7 +106,7 @@ void    str_solve(pid_t pid, struct user_regs_struct regs, int num_param)
             tmp = ptrace(PTRACE_PEEKDATA, pid, addr + i);
             memcpy(s + i, &tmp, sizeof(long));
         }
-        _s = make_printable_string(s, nsyscall, (int)size);
+        _s = make_printable_string(s, (int)size);
         printed += fprintf(stderr, "\"%s\"%s", _s, (_size > 32) ? " ..." : "");
         free(s);
         free(_s);
@@ -115,7 +120,7 @@ void    statbuf_solve(pid_t pid, struct user_regs_struct regs, int num_param)
     unsigned long long int reg = num_to_reg(regs, num_param);
     long tmp = 0;
 
-    for (int i = 0; i < sizeof(buf); i += sizeof(long)) {
+    for (size_t i = 0; i < sizeof(buf); i += sizeof(long)) {
         tmp = ptrace(PTRACE_PEEKDATA, pid, reg + i);
         b[i / sizeof(long)] = tmp;
     }
@@ -124,11 +129,15 @@ void    statbuf_solve(pid_t pid, struct user_regs_struct regs, int num_param)
 
 void    noparam_solve(pid_t pid, struct user_regs_struct regs, int num_param)
 {
+    (void)pid;
+    (void)regs;
+    (void)num_param;
     printed += fprintf(stderr, "?");
 }
 
 void    prot_flag_solve(pid_t pid, struct user_regs_struct regs, int num_param)
 {
+    (void)pid;
     unsigned long long int n = num_to_reg(regs, num_param);
     char s[128] = {0};
     int j = 0;
@@ -146,7 +155,7 @@ void    prot_flag_solve(pid_t pid, struct user_regs_struct regs, int num_param)
         printed += fprintf(stderr, "%s", s);
         return;
     }
-    for (int i = 1; i < sizeof(flag) / sizeof(flag[0]); ++i) {
+    for (size_t i = 1; i < sizeof(flag) / sizeof(flag[0]); ++i) {
         if (n & flag[i])
             j += snprintf( s + j, 128, "%s", (s[0] == 0) ? (str_flag[i]+1) : str_flag[i]);
     }
@@ -155,6 +164,7 @@ void    prot_flag_solve(pid_t pid, struct user_regs_struct regs, int num_param)
 
 void    map_flag_solve(pid_t pid, struct user_regs_struct regs, int num_param)
 {
+    (void)pid;
     unsigned long long int n = num_to_reg(regs, num_param);
     char s[128] = {0};
     int j = 0;
@@ -168,7 +178,7 @@ void    map_flag_solve(pid_t pid, struct user_regs_struct regs, int num_param)
             "|MAP_ANONYMOUS", "|MAP_DENYWRITE", "|MAP_EXECUTABLE",
             "|MAP_STACK", "|MAP_HUGETLB",
     };
-    for (int i = 0; i < sizeof(flag) / sizeof(flag[0]); ++i) {
+    for (size_t i = 0; i < sizeof(flag) / sizeof(flag[0]); ++i) {
         if (n & flag[i])
             j += snprintf( s + j, 128, "%s", (s[0] == 0) ? (str_flag[i]+1) : str_flag[i]);
     }
@@ -177,6 +187,7 @@ void    map_flag_solve(pid_t pid, struct user_regs_struct regs, int num_param)
 
 void    o_flag_solve(pid_t pid, struct user_regs_struct regs, int num_param)
 {
+    (void)pid;
     unsigned long long int n = num_to_reg(regs, num_param);
     char s[128] = {0};
     int j = 0;
@@ -193,7 +204,7 @@ void    o_flag_solve(pid_t pid, struct user_regs_struct regs, int num_param)
     } else {
         if ((n & 1) == O_RDONLY)
             j += snprintf( s, 128, "%s", (str_flag[0]+1));
-        for (int i = 0; i < sizeof(flag) / sizeof(flag[0]); ++i) {
+        for (size_t i = 0; i < sizeof(flag) / sizeof(flag[0]); ++i) {
             if (n & flag[i])
                 j += snprintf( s + j, 128, "%s", (s[0] == 0) ? (str_flag[i]+1) : str_flag[i]);
         }
@@ -203,6 +214,7 @@ void    o_flag_solve(pid_t pid, struct user_regs_struct regs, int num_param)
 
 void    r_flag_solve(pid_t pid, struct user_regs_struct regs, int num_param)
 {
+    (void)pid;
     unsigned long long int n = num_to_reg(regs, num_param);
     char s[128] = {0};
     int j = 0;
@@ -218,7 +230,7 @@ void    r_flag_solve(pid_t pid, struct user_regs_struct regs, int num_param)
         printed += fprintf(stderr, "%s", s);
         return;
     }
-    for (int i = 1; i < sizeof(flag) / sizeof(flag[0]); ++i) {
+    for (size_t i = 1; i < sizeof(flag) / sizeof(flag[0]); ++i) {
         if (n & flag[i])
             j += snprintf( s + j, 128, "%s", (s[0] == 0) ? (str_flag[i]+1) : str_flag[i]);
     }
@@ -227,6 +239,7 @@ void    r_flag_solve(pid_t pid, struct user_regs_struct regs, int num_param)
 
 void    at_flag_solve(pid_t pid, struct user_regs_struct regs, int num_param)
 {
+    (void)pid;
     unsigned long long int n = num_to_reg(regs, num_param);
     unsigned int flag[] = {
             AT_FDCWD, AT_SYMLINK_NOFOLLOW, AT_REMOVEDIR, AT_SYMLINK_FOLLOW
@@ -235,7 +248,7 @@ void    at_flag_solve(pid_t pid, struct user_regs_struct regs, int num_param)
             "AT_FDCWD", "AT_SYMLINK_NOFOLLOW", "AT_REMOVEDIR", "AT_SYMLINK_FOLLOW"
     };
 
-    for (int i = 0; i < sizeof(flag) / sizeof(flag[0]); ++i) {
+    for (size_t i = 0; i < sizeof(flag) / sizeof(flag[0]); ++i) {
         if (n == flag[i]) {
             printed += fprintf(stderr, "%s", str_flag[i]);
             break ;
@@ -245,6 +258,7 @@ void    at_flag_solve(pid_t pid, struct user_regs_struct regs, int num_param)
 
 void    arch_flag_solve(pid_t pid, struct user_regs_struct regs, int num_param)
 {
+    (void)pid;
     unsigned long long int n = num_to_reg(regs, num_param);
     unsigned int flag[] = {
             ARCH_SET_GS, ARCH_SET_FS, ARCH_GET_FS, ARCH_GET_GS,
@@ -255,7 +269,7 @@ void    arch_flag_solve(pid_t pid, struct user_regs_struct regs, int num_param)
             "ARCH_GET_CPUID", "ARCH_SET_CPUID"
     };
 
-    for (int i = 0; i < sizeof(flag) / sizeof(flag[0]); ++i) {
+    for (size_t i = 0; i < sizeof(flag) / sizeof(flag[0]); ++i) {
         if (n == flag[i]) {
             printed += fprintf(stderr, "%s", str_flag[i]);
             break ;
