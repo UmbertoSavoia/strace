@@ -1,5 +1,25 @@
 #include "../include/ft_strace.h"
 
+void    init_solve(f_solve *solve)
+{
+    solve[0] = &noparam_solve;
+    solve[1] = &strtab_solve;
+    solve[2] = &str_solve;
+    solve[3] = &statbuf_solve;
+    solve[4] = &uint_solve;
+    solve[5] = &int_solve;
+    solve[6] = &long_solve;
+    solve[7] = &hex_solve;
+    solve[8] = &prot_flag_solve;
+    solve[9] = &map_flag_solve;
+    solve[10] = &o_flag_solve;
+    solve[11] = &at_flag_solve;
+    solve[12] = &vars_solve;
+    solve[13] = &r_flag_solve;
+    solve[14] = &ptr_solve;
+    solve[15] = &arch_flag_solve;
+}
+
 int     get_regs(pid_t pid, struct user_regs_struct *ret)
 {
     struct user_regs_struct regs;

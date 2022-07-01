@@ -18,6 +18,7 @@
 #include <asm/prctl.h>
 #include <errno.h>
 #include <stdarg.h>
+#include <sys/time.h>
 
 enum types
 {
@@ -58,7 +59,15 @@ typedef struct  s_errno
     char desc[42];
 }               t_errno;
 
+typedef struct  s_summary
+{
+    struct timeval t;
+    int calls;
+    int errors;
+}               t_summary;
+
 extern int printed;
+extern unsigned char is_summary;
 extern t_errno errno_tab[];
 extern t_sigtab sigtab[32];
 extern t_syscalls syscalls_64[];
@@ -89,6 +98,7 @@ void    errno_solve(struct user_regs_struct post_regs);
 /**
  * utils.c
  */
+void                    init_solve(f_solve *solve);
 int                     get_regs(pid_t pid, struct user_regs_struct *ret);
 unsigned long long int  num_to_reg(struct user_regs_struct regs, int n);
 char                    *make_printable_string(char *s, int size);
