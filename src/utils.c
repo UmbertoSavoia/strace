@@ -39,7 +39,7 @@ int     get_regs(pid_t pid, struct user_regs_struct *ret)
     return 0;
 }
 
-unsigned long long int num_to_reg(struct user_regs_struct regs, int n)
+unsigned long long int num_to_reg_64(struct user_regs_struct regs, int n)
 {
     switch (n) {
         case 1:
@@ -54,6 +54,27 @@ unsigned long long int num_to_reg(struct user_regs_struct regs, int n)
             return regs.r8;
         case 6:
             return regs.r9;
+        case 7: // return of syscall
+            return regs.rax;
+    }
+    return 0;
+}
+
+unsigned long long int num_to_reg_32(struct user_regs_struct regs, int n)
+{
+    switch (n) {
+        case 1:
+            return regs.rbx;
+        case 2:
+            return regs.rcx;
+        case 3:
+            return regs.rdx;
+        case 4:
+            return regs.rsi;
+        case 5:
+            return regs.rdi;
+        case 6:
+            return regs.rbp;
         case 7: // return of syscall
             return regs.rax;
     }
@@ -113,4 +134,60 @@ void    sigaddset_multi(sigset_t *sigmask, int tot_arg, ...)
     for (int i = 0; i < tot_arg; ++i)
         sigaddset(sigmask, va_arg(ap, int));
     va_end(ap);
+}
+
+char     *resolve_path(char *arg)
+{
+    struct stat statbuf = {0};
+    char buf[4096] = {0};
+    char *s = getenv("PATH");
+
+    if (!lstat(arg, &statbuf))
+        return strdup(arg);
+    if (!s) return 0;
+    char *p = strtok(s, ":");
+    while (p) {
+        snprintf(buf, 4096, "%s/%s", p, arg);
+        if (!lstat(buf, &statbuf))
+            return strdup(buf);
+        p = strtok(0, ":");
+    }
+    return 0;
+}
+
+double  to_double(struct timeval *t)
+{
+    return t->tv_sec + t->tv_usec / 1000000.0;
+}
+
+int     check_arch(const char *filename)
+{
+    int fd = 0;
+    unsigned char ident[EI_NIDENT] = {0};
+    unsigned char magic[] = {
+            127, 'E', 'L', 'F'
+    };
+
+    if ((fd = open(filename, O_RDONLY)) < 0)
+        return -1;
+    if (read(fd, ident, sizeof(ident)) < 0)
+        return -1;
+    if (memcmp(&ident[EI_MAG0], magic, sizeof(magic)))
+        return -1;
+    if (ident[EI_CLASS] == ELFCLASS32) {
+        syscalls = syscalls_32;
+        num_to_reg = &num_to_reg_32;
+        fstat_n = 5;
+        read_n = 0;
+        write_n = 1;
+    } else if (ident[EI_CLASS] == ELFCLASS64) {
+        syscalls = syscalls_64;
+        num_to_reg = &num_to_reg_64;
+        fstat_n = 197;
+        read_n = 3;
+        write_n = 4;
+    } else {
+        return -1;
+    }
+    return 0;
 }

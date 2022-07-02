@@ -3,9 +3,15 @@
 #include "../include/errnotab.h"
 #include "../include/sigtab.h"
 #include "../include/syscalls_64.h"
+#include "../include/syscalls_32.h"
 
 unsigned char is_summary = 0;
 int printed = 0;
+t_syscalls *syscalls = 0;
+f_num_to_reg num_to_reg = 0;
+int fstat_n = 0;
+int read_n = 0;
+int write_n = 0;
 
 int    handle_sig(pid_t pid, siginfo_t *sig)
 {
@@ -72,41 +78,22 @@ int     intercept_syscall(pid_t pid, int *_status, struct user_regs_struct *ret,
     return -2;
 }
 
-char     *resolve_path(char *arg)
-{
-    struct stat statbuf = {0};
-    char buf[4096] = {0};
-    char *s = getenv("PATH");
-
-    if (!lstat(arg, &statbuf))
-        return strdup(arg);
-    if (!s) return 0;
-    char *p = strtok(s, ":");
-    while (p) {
-        snprintf(buf, 4096, "%s/%s", p, arg);
-        if (!lstat(buf, &statbuf))
-            return strdup(buf);
-        p = strtok(0, ":");
-    }
-    return 0;
-}
-
 void    handler_syscall_params(pid_t pid, struct user_regs_struct *pre_regs, struct user_regs_struct *post_regs,
                                f_solve *solve, int *status, struct timeval *t)
 {
     if (!is_summary)
-        printed += fprintf(stderr, "%s(", syscalls_64[pre_regs->orig_rax].name);
+        printed += fprintf(stderr, "%s(", syscalls[pre_regs->orig_rax].name);
     for (int i = 0; i < 6; ++i) {
         if ((pre_regs->orig_rax == 0 || pre_regs->orig_rax == 5) && (i+1) == 2) {
             ptrace(PTRACE_SYSCALL, pid, 0, 0);
             intercept_syscall(pid, status, post_regs, t);
         }
         if (!is_summary) {
-            unsigned char param = syscalls_64[pre_regs->orig_rax].params[i];
+            unsigned char param = syscalls[pre_regs->orig_rax].params[i];
             if (param == NOPAR)
                 break;
             solve[param](pid, *pre_regs, i+1);
-            if (i != 5 && i < 6 && syscalls_64[pre_regs->orig_rax].params[i+1] != NOPAR)
+            if (i != 5 && i < 6 && syscalls[pre_regs->orig_rax].params[i+1] != NOPAR)
                 printed += fprintf(stderr, ", ");
         }
     }
@@ -124,63 +111,9 @@ void    handler_syscall_return(pid_t pid, struct user_regs_struct *pre_regs, str
         if ((long)post_regs->rax < 0)
             errno_solve(*post_regs);
         else
-            solve[(unsigned int)syscalls_64[pre_regs->orig_rax].ret](pid, *post_regs, 7);
+            solve[(unsigned int)syscalls[pre_regs->orig_rax].ret](pid, *post_regs, 7);
         fprintf(stderr, "\n");
     }
-}
-
-void    update_summary(t_summary *summary, struct timeval *start, struct timeval *end,
-                       struct user_regs_struct *pre, struct user_regs_struct *post)
-{
-    struct timeval temp = {0};
-
-    timersub(end, start, &temp);
-    timeradd(&summary[pre->orig_rax].t, &temp, &summary[pre->orig_rax].t);
-    summary[pre->orig_rax].calls++;
-    if ((long)post->rax < 0)
-        summary[pre->orig_rax].errors++;
-}
-
-double to_double(struct timeval *t)
-{
-    return t->tv_sec + t->tv_usec / 1000000.0;
-}
-
-void    print_summary(t_summary *summary, int n)
-{
-    struct timeval tot_time = {0};
-    int tot_calls = 0;
-    int tot_errors = 0;
-    double d_tot_time = 0;
-
-    for (int i = 0; i < n; ++i) {
-        if (summary[i].calls != 0) {
-            timeradd(&tot_time, &summary[i].t, &tot_time);
-            tot_calls += summary[i].calls;
-            tot_errors += summary[i].errors;
-        }
-    }
-    d_tot_time = to_double(&tot_time);
-
-    fprintf(stderr, "%s%s",
-            "% time     seconds  usecs/call     calls    errors syscall\n",
-            "------ ----------- ----------- --------- --------- ----------------\n");
-    for (int i = 0; i < n; ++i) {
-        if (summary[i].calls != 0) {
-            fprintf(stderr, "%6.2f %11.6f %11ld %9d %9.0d %s\n",
-                        (to_double(&summary[i].t) / d_tot_time) * 100.0,
-                        to_double(&summary[i].t),
-                        (long)((long)(to_double(&summary[i].t) * 1000000)  / summary[i].calls),
-                        summary[i].calls,
-                        summary[i].errors,
-                        syscalls_64[i].name
-                    );
-        }
-    }
-    fprintf(stderr, "%s",
-            "------ ----------- ----------- --------- --------- ----------------\n");
-    fprintf(stderr, "100.00 %11.6f %11.0d %9d %9.0d total\n",
-            d_tot_time, 0, tot_calls, tot_errors);
 }
 
 int     ft_strace(pid_t pid)
@@ -233,9 +166,11 @@ int     main(int ac, char **av, char **envp)
         execve(av[i], av+i, envp);
         exit(3);
     } else if (pid > 0) {
+        if (check_arch(solved_path) < 0)
+            return 4;
         free(solved_path);
         return ft_strace(pid);
     } else {
-        return 4;
+        return 5;
     }
 }

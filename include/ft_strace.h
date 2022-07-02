@@ -66,13 +66,20 @@ typedef struct  s_summary
     int errors;
 }               t_summary;
 
+typedef void (*f_solve)(pid_t pid, struct user_regs_struct regs, int num_param);
+typedef unsigned long long int (*f_num_to_reg)(struct user_regs_struct regs, int n);
+
 extern int printed;
 extern unsigned char is_summary;
 extern t_errno errno_tab[];
 extern t_sigtab sigtab[32];
 extern t_syscalls syscalls_64[];
-
-typedef void (*f_solve)(pid_t pid, struct user_regs_struct regs, int num_param);
+extern t_syscalls syscalls_32[];
+extern t_syscalls *syscalls;
+extern f_num_to_reg num_to_reg;
+extern int fstat_n;
+extern int read_n;
+extern int write_n;
 
 /**
  * solvers.c
@@ -100,9 +107,20 @@ void    errno_solve(struct user_regs_struct post_regs);
  */
 void                    init_solve(f_solve *solve);
 int                     get_regs(pid_t pid, struct user_regs_struct *ret);
-unsigned long long int  num_to_reg(struct user_regs_struct regs, int n);
+unsigned long long int  num_to_reg_32(struct user_regs_struct regs, int n);
+unsigned long long int  num_to_reg_64(struct user_regs_struct regs, int n);
 char                    *make_printable_string(char *s, int size);
 char                    *get_string(pid_t pid, unsigned long long int reg);
 void                    sigaddset_multi(sigset_t *sigmask, int tot_arg, ...);
+char                    *resolve_path(char *arg);
+double                  to_double(struct timeval *t);
+int                     check_arch(const char *filename);
+
+/**
+ * summary.c
+ */
+void    update_summary(t_summary *summary, struct timeval *start, struct timeval *end,
+                        struct user_regs_struct *pre, struct user_regs_struct *post);
+void    print_summary(t_summary *summary, int n);
 
 #endif
