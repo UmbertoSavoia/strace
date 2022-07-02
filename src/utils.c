@@ -181,15 +181,15 @@ int     check_arch(const char *filename)
     if (ident[EI_CLASS] == ELFCLASS32) {
         syscalls = syscalls_32;
         num_to_reg = &num_to_reg_32;
-        fstat_n = 5;
-        read_n = 0;
-        write_n = 1;
-    } else if (ident[EI_CLASS] == ELFCLASS64) {
-        syscalls = syscalls_64;
-        num_to_reg = &num_to_reg_64;
         fstat_n = 197;
         read_n = 3;
         write_n = 4;
+    } else if (ident[EI_CLASS] == ELFCLASS64) {
+        syscalls = syscalls_64;
+        num_to_reg = &num_to_reg_64;
+        fstat_n = 5;
+        read_n = 0;
+        write_n = 1;
     } else {
         return -1;
     }
