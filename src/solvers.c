@@ -84,7 +84,7 @@ void    str_solve(pid_t pid, struct user_regs_struct regs, int num_param)
     unsigned long long int nsyscall = regs.orig_rax;
     unsigned long long int addr = num_to_reg(regs, num_param);
 
-    if (nsyscall != 0 && nsyscall != 1) {
+    if (nsyscall != read_n && nsyscall != write_n) {
         s = get_string(pid, addr);
         printed += fprintf(stderr, "\"%s\"", s);
         free(s);
@@ -92,7 +92,7 @@ void    str_solve(pid_t pid, struct user_regs_struct regs, int num_param)
         long tmp = 0;
         unsigned long long int _size = 0;
 
-        if (nsyscall == 0) {
+        if (nsyscall == read_n) {
             struct user_regs_struct reg_post = {0};
             get_regs(pid, &reg_post);
             _size = reg_post.rax;

@@ -84,7 +84,7 @@ void    handler_syscall_params(pid_t pid, struct user_regs_struct *pre_regs, str
     if (!is_summary)
         printed += fprintf(stderr, "%s(", syscalls[pre_regs->orig_rax].name);
     for (int i = 0; i < 6; ++i) {
-        if ((pre_regs->orig_rax == 0 || pre_regs->orig_rax == 5) && (i+1) == 2) {
+        if ((pre_regs->orig_rax == read_n || pre_regs->orig_rax == fstat_n) && (i+1) == 2) {
             ptrace(PTRACE_SYSCALL, pid, 0, 0);
             intercept_syscall(pid, status, post_regs, t);
         }
@@ -102,7 +102,7 @@ void    handler_syscall_params(pid_t pid, struct user_regs_struct *pre_regs, str
 void    handler_syscall_return(pid_t pid, struct user_regs_struct *pre_regs, struct user_regs_struct *post_regs,
                                f_solve *solve, int *status, struct timeval *t)
 {
-    if (pre_regs->orig_rax != 0 && pre_regs->orig_rax != 5) {
+    if (pre_regs->orig_rax != read_n && pre_regs->orig_rax != fstat_n) {
         ptrace(PTRACE_SYSCALL, pid, 0, 0);
         intercept_syscall(pid, status, post_regs, t);
     }

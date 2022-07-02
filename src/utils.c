@@ -56,6 +56,8 @@ unsigned long long int num_to_reg_64(struct user_regs_struct regs, int n)
             return regs.r9;
         case 7: // return of syscall
             return regs.rax;
+        default:
+            return 0;
     }
     return 0;
 }
@@ -77,6 +79,8 @@ unsigned long long int num_to_reg_32(struct user_regs_struct regs, int n)
             return regs.rbp;
         case 7: // return of syscall
             return regs.rax;
+        default:
+            return 0;
     }
     return 0;
 }
