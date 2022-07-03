@@ -186,17 +186,15 @@ int     check_arch(const char *filename)
         return -1;
     if (read(fd, ident, sizeof(ident)) < 0)
         return -1;
-    if (memcmp(&ident[EI_MAG0], magic, sizeof(magic)))
+    if (memcmp(&ident[EI_MAG0], magic, sizeof(magic)) != 0)
         return -1;
+    syscalls = syscalls_64;
+    num_to_reg = &num_to_reg_64;
     if (ident[EI_CLASS] == ELFCLASS32) {
-        syscalls = syscalls_64;
-        num_to_reg = &num_to_reg_64;
         fstat_n = 197;
         read_n = 3;
         write_n = 4;
     } else if (ident[EI_CLASS] == ELFCLASS64) {
-        syscalls = syscalls_64;
-        num_to_reg = &num_to_reg_64;
         fstat_n = 5;
         read_n = 0;
         write_n = 1;

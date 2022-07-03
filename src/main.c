@@ -84,7 +84,7 @@ void    handler_syscall_params(pid_t pid, struct user_regs_struct *pre_regs, str
     if (!is_summary)
         printed += fprintf(stderr, "%s(", syscalls[pre_regs->orig_rax].name);
     for (int i = 0; i < 6; ++i) {
-        if ((pre_regs->orig_rax == read_n || pre_regs->orig_rax == fstat_n) && (i+1) == 2) {
+        if (((int)pre_regs->orig_rax == read_n || (int)pre_regs->orig_rax == fstat_n) && (i+1) == 2) {
             ptrace(PTRACE_SYSCALL, pid, 0, 0);
             intercept_syscall(pid, status, post_regs, t);
         }
@@ -102,7 +102,7 @@ void    handler_syscall_params(pid_t pid, struct user_regs_struct *pre_regs, str
 void    handler_syscall_return(pid_t pid, struct user_regs_struct *pre_regs, struct user_regs_struct *post_regs,
                                f_solve *solve, int *status, struct timeval *t)
 {
-    if (pre_regs->orig_rax != read_n && pre_regs->orig_rax != fstat_n) {
+    if ((int)pre_regs->orig_rax != read_n && (int)pre_regs->orig_rax != fstat_n) {
         ptrace(PTRACE_SYSCALL, pid, 0, 0);
         intercept_syscall(pid, status, post_regs, t);
     }
@@ -116,11 +116,24 @@ void    handler_syscall_return(pid_t pid, struct user_regs_struct *pre_regs, str
     }
 }
 
+void    handler_summary(int arch, t_summary *summary, t_summary *summary_switch, int size_summary)
+{
+    if (arch == ELFCLASS32) {
+        syscalls = syscalls_64;
+        print_summary(summary_switch, size_summary);
+        fprintf(stderr, "%s\n", "System call usage summary for 32 bit mode:");
+        syscalls = syscalls_32;
+        print_summary(summary, size_summary);
+    } else {
+        print_summary(summary, size_summary);
+    }
+}
+
 int     ft_strace(pid_t pid, int arch)
 {
     f_solve solve[16];
-    t_summary summary[400] = {0};
     int status = 0;
+    t_summary summary[400] = {0}, summary_switch[400] = {0};
     struct timeval start = {0}, end = {0};
     struct user_regs_struct pre_regs = {0}, post_regs = {0};
 
@@ -134,7 +147,11 @@ int     ft_strace(pid_t pid, int arch)
             handler_syscall_params(pid, &pre_regs, &post_regs, solve, &status, &end);
             handler_syscall_return(pid, &pre_regs, &post_regs, solve, &status, &end);
             if (is_summary) update_summary(summary, &start, &end, &pre_regs, &post_regs);
-            if (arch == ELFCLASS32 && syscalls == syscalls_64) switch_32_mode(pid);
+            if (arch == ELFCLASS32 && syscalls == syscalls_64) {
+                memcpy(&summary_switch[pre_regs.orig_rax], &summary[pre_regs.orig_rax], sizeof(t_summary));
+                memset(&summary[pre_regs.orig_rax], 0, sizeof(t_summary));
+                switch_32_mode(pid);
+            }
             ptrace(PTRACE_SYSCALL, pid, 0, 0);
             printed = 0;
             if (WIFEXITED(status)) {
@@ -142,7 +159,7 @@ int     ft_strace(pid_t pid, int arch)
                     fprintf(stderr, "+++ exited with %d +++\n", WEXITSTATUS(status));
                 } else {
                     memset(&summary[pre_regs.orig_rax], 0, sizeof(t_summary));
-                    print_summary(summary, sizeof(summary) / sizeof(summary[0]));
+                    handler_summary(arch, summary, summary_switch, 400);
                 }
                 return WEXITSTATUS(status);
             }

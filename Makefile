@@ -1,6 +1,6 @@
 TARGET = ft_strace
 CC = gcc
-CFLAGS = -g #-Werror -Wall -Wextra
+CFLAGS = -g -Werror -Wall -Wextra
 RM = rm -f
 
 SRC = $(wildcard src/*.c)

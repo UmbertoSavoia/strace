@@ -81,7 +81,7 @@ void    str_solve(pid_t pid, struct user_regs_struct regs, int num_param)
 {
     char *s = 0;
     char *_s = 0;
-    unsigned long long int nsyscall = regs.orig_rax;
+    int nsyscall = (int)regs.orig_rax;
     unsigned long long int addr = num_to_reg(regs, num_param);
 
     if (nsyscall != read_n && nsyscall != write_n) {
