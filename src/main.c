@@ -51,15 +51,8 @@ int     intercept_syscall(pid_t pid, int *_status, struct user_regs_struct *ret,
 {
     siginfo_t siginfo;
     int status = 0;
-    sigset_t sigmask;
 
-    sigemptyset(&sigmask);
-    sigprocmask(SIG_SETMASK, &sigmask, NULL);
-    waitpid(pid, &status, 0);
-    sigemptyset(&sigmask);
-    sigaddset_multi(&sigmask, 5,
-                    SIGHUP, SIGINT, SIGQUIT, SIGPIPE, SIGTERM);
-    sigprocmask(SIG_BLOCK, &sigmask, NULL);
+    _wait(pid, &status);
     *_status = status;
     if (WIFEXITED(status))
         return -1;
@@ -139,6 +132,7 @@ int     ft_strace(pid_t pid, int arch)
 
     init_solve(solve);
     ptrace(PTRACE_SEIZE, pid, 0, PTRACE_O_TRACESYSGOOD);
+    _wait(pid, &status);
     ptrace(PTRACE_INTERRUPT, pid, 0, 0);
     ptrace(PTRACE_SYSCALL, pid, 0, 0);
 
@@ -181,6 +175,7 @@ int     main(int ac, char **av, char **envp)
     if (pid == 0) {
         unsigned char i = is_summary == 0 ? 1 : is_summary;
         av[i] = solved_path;
+        kill(getpid(), SIGSTOP);
         execve(av[i], av+i, envp);
         exit(3);
     } else if (pid > 0) {

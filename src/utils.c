@@ -210,3 +210,16 @@ void    switch_32_mode(pid_t pid)
     num_to_reg = num_to_reg_32;
     fprintf(stderr, "[ Process PID=%d runs in 32 bit mode. ]\n", pid);
 }
+
+void    _wait(pid_t pid, int *status)
+{
+    sigset_t sigmask;
+
+    sigemptyset(&sigmask);
+    sigprocmask(SIG_SETMASK, &sigmask, NULL);
+    waitpid(pid, status, 0);
+    sigemptyset(&sigmask);
+    sigaddset_multi(&sigmask, 5,
+                    SIGHUP, SIGINT, SIGQUIT, SIGPIPE, SIGTERM);
+    sigprocmask(SIG_BLOCK, &sigmask, NULL);
+}

@@ -136,6 +136,7 @@ char                    *resolve_path(char *arg);
 double                  to_double(struct timeval *t);
 int                     check_arch(const char *filename);
 void                    switch_32_mode(pid_t pid);
+void                    _wait(pid_t pid, int *status);
 
 /**
  * summary.c
