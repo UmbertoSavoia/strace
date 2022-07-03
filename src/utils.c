@@ -22,20 +22,30 @@ void    init_solve(f_solve *solve)
 
 int     get_regs(pid_t pid, struct user_regs_struct *ret)
 {
-    struct user_regs_struct regs;
-
+    static union {
+        struct user_regs_struct      x86_64_r;
+        struct i386_user_regs_struct i386_r;
+    } x86_regs_union;
     struct iovec pt_iov = {
-            .iov_base = &regs,
-            .iov_len = sizeof(regs),
+            .iov_base = &x86_regs_union,
+            .iov_len = sizeof(x86_regs_union),
     };
-    pt_iov.iov_base = &regs;
-    pt_iov.iov_len = sizeof(regs);
-
-    if (ptrace(PTRACE_GETREGSET, pid, NT_PRSTATUS, &pt_iov) < 0)
+    ptrace(PTRACE_GETREGSET, pid, NT_PRSTATUS, &pt_iov);
+    if (pt_iov.iov_len == sizeof(struct user_regs_struct)) {
+        memcpy(ret, &x86_regs_union.x86_64_r, sizeof(struct user_regs_struct));
+    } else if (pt_iov.iov_len == sizeof(struct i386_user_regs_struct)) {
+        ret->orig_rax = x86_regs_union.i386_r.orig_eax;
+        ret->rax = x86_regs_union.i386_r.eax;
+        ret->rbx = x86_regs_union.i386_r.ebx;
+        ret->rcx = x86_regs_union.i386_r.ecx;
+        ret->rdx = x86_regs_union.i386_r.edx;
+        ret->rsi = x86_regs_union.i386_r.esi;
+        ret->rdi = x86_regs_union.i386_r.edi;
+        ret->rbp = x86_regs_union.i386_r.ebp;
+        ret->rip = x86_regs_union.i386_r.eip;
+    } else {
         return -1;
-    if (pt_iov.iov_len != sizeof(regs))
-        return -1;
-    memcpy(ret, &regs, sizeof(regs));
+    }
     return 0;
 }
 
@@ -179,8 +189,8 @@ int     check_arch(const char *filename)
     if (memcmp(&ident[EI_MAG0], magic, sizeof(magic)))
         return -1;
     if (ident[EI_CLASS] == ELFCLASS32) {
-        syscalls = syscalls_32;
-        num_to_reg = &num_to_reg_32;
+        syscalls = syscalls_64;
+        num_to_reg = &num_to_reg_64;
         fstat_n = 197;
         read_n = 3;
         write_n = 4;
@@ -193,5 +203,12 @@ int     check_arch(const char *filename)
     } else {
         return -1;
     }
-    return 0;
+    return ident[EI_CLASS];
+}
+
+void    switch_32_mode(pid_t pid)
+{
+    syscalls = syscalls_32;
+    num_to_reg = num_to_reg_32;
+    fprintf(stderr, "[ Process PID=%d runs in 32 bit mode. ]\n", pid);
 }

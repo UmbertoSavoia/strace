@@ -194,7 +194,7 @@ t_syscalls syscalls_32[] = {
         {"putpmsg",					{ HEX, HEX, HEX, HEX, HEX, HEX, }, INT},
         {"vfork",					{ NOPAR, NOPAR, NOPAR, NOPAR, NOPAR, NOPAR, }, LONG},
         {"ugetrlimit",				{ HEX, HEX, HEX, HEX, HEX, HEX, }, INT},
-        {"mmap2",					{ HEX, HEX, HEX, HEX, HEX, HEX, }, PTR},
+        {"mmap2",					{ PTR, INT, PROT, MAP, INT, HEX, }, PTR},
         {"truncate64",				{ STR, HEX, NOPAR, NOPAR, NOPAR, NOPAR, }, INT},
         {"ftruncate64",				{ UINT, HEX, NOPAR, NOPAR, NOPAR, NOPAR, }, INT},
         {"stat64",					{ STR, STATBUF, NOPAR, NOPAR, NOPAR, NOPAR, }, INT},
@@ -387,6 +387,7 @@ t_syscalls syscalls_32[] = {
         {"pkey_free",				{ INT, NOPAR, NOPAR, NOPAR, NOPAR, NOPAR, }, LONG},
         {"statx",					{ INT, STR, HEX, HEX, HEX, NOPAR, }, LONG},
         {"arch_prctl",				{ ARCH_FLAG, HEX, NOPAR, NOPAR, NOPAR, NOPAR, }, INT},
+        [407]{"clock_nanosleep_time64",			{ HEX, HEX, HEX, HEX, NOPAR, NOPAR, }, INT},
 };
 
 #endif

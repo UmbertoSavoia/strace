@@ -21,13 +21,12 @@ fclean: clean
 re: fclean all
 
 test:
-	$(CC) ./test/test1.c -o ./test/test1.out
-	$(CC) ./test/test2.c -o ./test/test2.out
-	$(CC) ./test/test3.c -o ./test/test3.out
-	$(CC) ./test/test4.c -o ./test/test4.out
-	$(CC) ./test/test5.c -o ./test/test5.out -lpthread
+	@for i in 1 2 3 4 5; do \
+  		gcc ./test/test$$i.c -o ./test/test$$i.64.out -pthread; \
+  		gcc ./test/test$$i.c -m32 -o ./test/test$$i.32.out -pthread; \
+  	done;
 
 clean_test:
-	$(RM) ./test/test1.out ./test/test2.out ./test/test3.out ./test/test4.out ./test/test5.out
+	$(RM) ./test/*.out
 
 .PHONY: all clean fclean re test clean_test

@@ -66,6 +66,26 @@ typedef struct  s_summary
     int errors;
 }               t_summary;
 
+struct i386_user_regs_struct {
+    uint32_t ebx;
+    uint32_t ecx;
+    uint32_t edx;
+    uint32_t esi;
+    uint32_t edi;
+    uint32_t ebp;
+    uint32_t eax;
+    uint32_t xds;
+    uint32_t xes;
+    uint32_t xfs;
+    uint32_t xgs;
+    uint32_t orig_eax;
+    uint32_t eip;
+    uint32_t xcs;
+    uint32_t eflags;
+    uint32_t esp;
+    uint32_t xss;
+};
+
 typedef void (*f_solve)(pid_t pid, struct user_regs_struct regs, int num_param);
 typedef unsigned long long int (*f_num_to_reg)(struct user_regs_struct regs, int n);
 
@@ -115,6 +135,7 @@ void                    sigaddset_multi(sigset_t *sigmask, int tot_arg, ...);
 char                    *resolve_path(char *arg);
 double                  to_double(struct timeval *t);
 int                     check_arch(const char *filename);
+void                    switch_32_mode(pid_t pid);
 
 /**
  * summary.c

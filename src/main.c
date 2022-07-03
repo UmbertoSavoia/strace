@@ -116,7 +116,7 @@ void    handler_syscall_return(pid_t pid, struct user_regs_struct *pre_regs, str
     }
 }
 
-int     ft_strace(pid_t pid)
+int     ft_strace(pid_t pid, int arch)
 {
     f_solve solve[16];
     t_summary summary[400] = {0};
@@ -134,6 +134,7 @@ int     ft_strace(pid_t pid)
             handler_syscall_params(pid, &pre_regs, &post_regs, solve, &status, &end);
             handler_syscall_return(pid, &pre_regs, &post_regs, solve, &status, &end);
             if (is_summary) update_summary(summary, &start, &end, &pre_regs, &post_regs);
+            if (arch == ELFCLASS32 && syscalls == syscalls_64) switch_32_mode(pid);
             ptrace(PTRACE_SYSCALL, pid, 0, 0);
             printed = 0;
             if (WIFEXITED(status)) {
@@ -166,10 +167,11 @@ int     main(int ac, char **av, char **envp)
         execve(av[i], av+i, envp);
         exit(3);
     } else if (pid > 0) {
-        if (check_arch(solved_path) < 0)
+        int arch = 0;
+        if ((arch = check_arch(solved_path)) < 0)
             return 4;
         free(solved_path);
-        return ft_strace(pid);
+        return ft_strace(pid, arch);
     } else {
         return 5;
     }
