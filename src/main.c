@@ -15,7 +15,7 @@ int write_n = 0;
 
 int    handle_sig(pid_t pid, siginfo_t *sig)
 {
-    if (sig->si_signo == SIGTRAP) {
+    if (sig->si_signo == SIGTRAP || sig->si_signo == SIGSTOP) {
         return 0;
     } else if (sig->si_signo == SIGCHLD) {
         if (!is_summary) fprintf(stderr,
